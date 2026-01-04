@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte'
-  import { AudioManager } from '../../lib/audio-manager'
+  import { AudioManager } from '../../lib/AudioManager'
 
   type Props = {
     selectedDeviceId: string

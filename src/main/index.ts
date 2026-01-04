@@ -2,8 +2,8 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
-import { VirtualAudioDriver } from './virtual-audio-driver'
-import { WebRTCSignalingServer } from './webrtc-signaling-server'
+import { VirtualAudioDriver } from './VirtualAudioDriver'
+import { WebRTCSignalingServer } from './WebrtcSignalingServer'
 
 let signalingServer: WebRTCSignalingServer | null = null
 let senderWindow: BrowserWindow | null = null

@@ -3,10 +3,10 @@
   import ReceiverAudioPlayer from './components/Receiver/ReceiverAudioPlayer.svelte'
   import ReceiverControlDash from './components/Receiver/ReceiverControlDash.svelte'
   import ReceiverStatus from './components/Receiver/ReceiverStatus.svelte'
-  import { AudioManager } from './lib/audio-manager'
+  import { AudioManager } from './lib/AudioManager'
+  import { WebRTCHelper } from './lib/WebrtcHelper'
 
-  let peerConnection = $state<RTCPeerConnection | null>(null)
-  let signalingSocket = $state<WebSocket | null>(null)
+  let webrtcHelper = $state<WebRTCHelper | null>(null)
   let remoteStream = $state<MediaStream | null>(null)
   let virtualMicStream = $state<MediaStream | null>(null)
 
@@ -31,7 +31,7 @@
       return
     }
 
-    if (!peerConnection) {
+    if (!webrtcHelper || !webrtcHelper.isConnected()) {
       error = 'You must connect to the sender first'
       return
     }
@@ -45,30 +45,9 @@
         selectedDeviceId: selectedLoopbackDeviceId
       })
 
-      // Add the track to peer connection
-      const audioTracks = localAudioStream.getAudioTracks()
-      if (audioTracks.length > 0) {
-        peerConnection.addTrack(audioTracks[0], localAudioStream)
-        console.log('🎤 Receiver: Loopback audio track added to peer connection')
-      }
-
-      // Trigger renegotiation by creating a new offer
-      console.log('🎤 Receiver: Creating new offer for renegotiation...')
-      const offer = await peerConnection.createOffer()
-      await peerConnection.setLocalDescription(offer)
-      console.log('🎤 Receiver: New offer created and set as local description')
-
-      // Send the new offer to the sender
-      if (signalingSocket?.readyState === WebSocket.OPEN) {
-        const offerMessage = JSON.stringify({
-          type: 'offer',
-          data: offer
-        })
-        signalingSocket.send(offerMessage)
-        console.log('🎤 Receiver: Renegotiation offer sent to sender')
-      } else {
-        console.error('🎤 Receiver: Signaling socket not open, cannot send renegotiation offer')
-      }
+      // Add the stream to the peer connection using simple-peer
+      webrtcHelper.addStream(localAudioStream)
+      console.log('🎤 Receiver: Loopback audio stream added to peer connection')
 
       isSendingAudio = true
       console.log('🎤 Receiver: Sending system audio to sender')
@@ -152,19 +131,18 @@
   }
 
   function stopSendingAudio(): void {
+    // Remove the stream from peer connection if it exists
+    if (localAudioStream && webrtcHelper) {
+      try {
+        webrtcHelper.removeStream(localAudioStream)
+      } catch (err) {
+        console.warn('Error removing stream:', err)
+      }
+    }
+
     if (localAudioStream) {
       localAudioStream.getTracks().forEach((track) => track.stop())
       localAudioStream = null
-    }
-
-    // Remove the track from peer connection if it exists
-    if (peerConnection) {
-      const senders = peerConnection.getSenders()
-      senders.forEach((sender) => {
-        if (sender.track?.kind === 'audio') {
-          peerConnection?.removeTrack(sender)
-        }
-      })
     }
 
     isSendingAudio = false
@@ -198,9 +176,8 @@
         <ReceiverControlDash
           bind:virtualMicStream
           bind:isVirtualMicActive
-          bind:signalingSocket
           bind:remoteStream
-          bind:peerConnection
+          bind:webrtcHelper
           bind:error
           {stopSendingAudio}
           {changeOutputDevice}

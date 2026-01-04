@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte'
+  import { WebRTCHelper } from '../../lib/WebrtcHelper'
 
   type Props = {
     virtualMicStream: MediaStream | null
@@ -25,8 +26,7 @@
     changeReceiverOutputDevice
   }: Props = $props()
 
-  let peerConnection = $state<RTCPeerConnection | null>(null)
-  let signalingSocket = $state<WebSocket | null>(null)
+  let webrtcHelper = $state<WebRTCHelper | null>(null)
 
   async function startWebRTCStreaming(): Promise<void> {
     if (!virtualMicStream) {
@@ -37,168 +37,62 @@
     try {
       error = null
 
-      // Iniciar servidor de se?alizaci?n
-      const result = await window.api.webrtc.start()
-      if (!result.success) {
-        error = result.error || 'Error al iniciar el servidor de se?alizaci?n'
-        return
-      }
+      // Crear helper WebRTC (emisor, iniciador)
+      // El helper manejará automáticamente el inicio del servidor
+      webrtcHelper = new WebRTCHelper('http://localhost:8080', true, {
+        onStream: (stream) => {
+          console.log('🎙️ Emisor: Stream recibido del receptor!')
+          receiverAudioStream = stream
+          isPlayingReceiverAudio = false
 
-      signalingURL = result.url || null
-
-      // Crear RTCPeerConnection
-      // Para localhost, no necesitamos STUN servers
-      const configuration = {
-        iceServers: [],
-        iceCandidatePoolSize: 10
-      }
-
-      peerConnection = new RTCPeerConnection(configuration)
-
-      console.log('??? Emisor: Peer connection creado')
-
-      // Agregar el stream virtual como track de audio
-      const audioTracks = virtualMicStream.getAudioTracks()
-      if (audioTracks.length > 0) {
-        peerConnection.addTrack(audioTracks[0], virtualMicStream)
-        console.log('Track de audio agregado al peer connection')
-      }
-
-      // Manejar tracks entrantes del receptor
-      peerConnection.ontrack = (event) => {
-        console.log('🎙️ Emisor: Track recibido del receptor!')
-        console.log('Event streams:', event.streams)
-        console.log('Event tracks:', event.track)
-        receiverAudioStream = event.streams[0]
-        isPlayingReceiverAudio = false
-        console.log('🎙️ Emisor: Stream del receptor disponible:', receiverAudioStream)
-        console.log('🎙️ UI section should now be visible!')
-
-        // Apply the selected output device after a short delay
-        setTimeout(() => {
-          if (receiverAudioElement && selectedReceiverOutputDeviceId !== 'default') {
-            changeReceiverOutputDevice()
-          }
-        }, 500)
-      }
-
-      // Manejar ICE candidates
-      peerConnection.onicecandidate = (event) => {
-        if (event.candidate && signalingSocket) {
-          signalingSocket.send(
-            JSON.stringify({
-              type: 'ice-candidate',
-              data: event.candidate
-            })
-          )
-        }
-      }
-
-      // Manejar cambios de estado de conexi?n
-      peerConnection.onconnectionstatechange = () => {
-        console.log('Estado de conexi?n WebRTC:', peerConnection?.connectionState)
-        if (peerConnection?.connectionState === 'failed') {
-          error = 'Error en la conexi?n WebRTC'
-        }
-      }
-
-      // Conectar al servidor de se?alizaci?n
-      if (!signalingURL) {
-        throw new Error('URL de se?alizaci?n no disponible')
-      }
-
-      signalingSocket = new WebSocket(signalingURL)
-
-      let receiverReady = false
-
-      signalingSocket.onopen = () => {
-        console.log('??? Emisor conectado al servidor de se?alizaci?n')
-        console.log('??? Esperando mensaje "ready" del receptor...')
-      }
-
-      signalingSocket.onmessage = async (event) => {
-        try {
-          const message = JSON.parse(event.data)
-          console.log('??? Emisor - Mensaje recibido:', message.type)
-
-          if (message.type === 'ready') {
-            if (!receiverReady) {
-              console.log('??? Emisor: ? Receptor est? listo!')
-              receiverReady = true
-
-              // Ahora que el receptor est? listo, crear y enviar offer
-              console.log('??? Creando offer...')
-              const offer = await peerConnection.createOffer({
-                offerToReceiveAudio: true,
-                offerToReceiveVideo: false
-              })
-
-              console.log('??? Offer creado:', offer.type)
-              console.log('??? SDP:', offer.sdp?.substring(0, 100) + '...')
-              await peerConnection.setLocalDescription(offer)
-              console.log('??? Local description establecida')
-
-              const offerMessage = JSON.stringify({
-                type: 'offer',
-                data: offer
-              })
-
-              console.log('??? Enviando offer al servidor de se?alizaci?n...')
-              console.log('??? Tama?o del mensaje:', offerMessage.length, 'bytes')
-
-              if (signalingSocket?.readyState === WebSocket.OPEN) {
-                signalingSocket.send(offerMessage)
-                console.log('??? ? Offer enviado al servidor!')
-              } else {
-                console.error('??? ? WebSocket no est? abierto')
-              }
-            } else {
-              console.log('??? Emisor: Ignorando mensaje ready duplicado')
+          // Apply the selected output device after a short delay
+          setTimeout(() => {
+            if (receiverAudioElement && selectedReceiverOutputDeviceId !== 'default') {
+              changeReceiverOutputDevice()
             }
-          } else if (message.type === 'offer' && peerConnection) {
-            console.log('🔄 Emisor: Offer de renegociación recibido del receptor')
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(message.data))
-            console.log('🔄 Emisor: Remote description actualizada')
-
-            // Create and send answer for renegotiation
-            const answer = await peerConnection.createAnswer()
-            await peerConnection.setLocalDescription(answer)
-            console.log('🔄 Emisor: Answer de renegociación creado')
-
-            if (signalingSocket?.readyState === WebSocket.OPEN) {
-              signalingSocket.send(
-                JSON.stringify({
-                  type: 'answer',
-                  data: answer
-                })
-              )
-              console.log('🔄 Emisor: Answer de renegociación enviado')
-            }
-          } else if (message.type === 'answer' && peerConnection) {
-            console.log('??? Emisor: ? Answer recibido del receptor')
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(message.data))
-            console.log('??? Emisor: ? Remote description establecida - Conexi?n P2P en progreso')
-          } else if (message.type === 'ice-candidate' && peerConnection) {
-            console.log('??? Emisor: ICE candidate recibido')
-            if (message.data) {
-              await peerConnection.addIceCandidate(new RTCIceCandidate(message.data))
-            }
-          }
-        } catch (err) {
-          console.error('??? Emisor - Error procesando mensaje:', err)
+          }, 500)
+        },
+        onConnect: () => {
+          console.log('🎙️ Emisor: Conexión establecida')
+        },
+        onDisconnect: () => {
+          console.log('🎙️ Emisor: Desconectado')
+        },
+        onError: (err) => {
+          console.error('🎙️ Emisor - Error:', err)
+          error = err.message
         }
+      })
+
+      // Validar que el stream tenga tracks activos antes de conectar
+      const tracks = virtualMicStream.getAudioTracks()
+      if (tracks.length === 0) {
+        throw new Error('Virtual microphone stream has no audio tracks')
       }
 
-      signalingSocket.onerror = (err) => {
-        console.error('Error en WebSocket de se?alizaci?n:', err)
-        error = 'Error en la conexi?n de se?alizaci?n'
+      // Verificar que los tracks estén activos
+      const activeTracks = tracks.filter((track) => track.readyState === 'live')
+      if (activeTracks.length === 0) {
+        throw new Error('Virtual microphone stream has no active tracks')
       }
 
-      signalingSocket.onclose = () => {
-        console.log('Conexi?n de se?alizaci?n cerrada')
-      }
+      console.log(
+        '🎙️ Emisor: Conectando con stream:',
+        virtualMicStream.id,
+        activeTracks.length,
+        'tracks activos'
+      )
+      activeTracks.forEach((track) => {
+        console.log(
+          `  - Track: ${track.id}, enabled: ${track.enabled}, label: ${track.label || 'no label'}`
+        )
+      })
 
+      // Conectar con el stream virtual
+      await webrtcHelper.connect(virtualMicStream)
+      signalingURL = 'http://localhost:8080'
       isWebRTCStreaming = true
+      console.log('🎙️ Emisor: WebRTC streaming iniciado')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
       error = `Error al iniciar streaming WebRTC: ${errorMessage}`
@@ -209,14 +103,9 @@
 
   async function stopWebRTCStreaming(): Promise<void> {
     try {
-      if (signalingSocket) {
-        signalingSocket.close()
-        signalingSocket = null
-      }
-
-      if (peerConnection) {
-        peerConnection.close()
-        peerConnection = null
+      if (webrtcHelper) {
+        webrtcHelper.disconnect()
+        webrtcHelper = null
       }
 
       if (receiverAudioStream) {

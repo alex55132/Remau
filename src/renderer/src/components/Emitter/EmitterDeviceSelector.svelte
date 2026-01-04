@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import type { MediaDevice } from '../../../../types/MediaDevice'
-  import { AudioManager } from '../../lib/audio-manager'
+  import { AudioManager } from '../../lib/AudioManager'
 
   type Props = {
     selectedDeviceId: string
