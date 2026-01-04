@@ -1,6 +1,6 @@
 # Remau
 
-An Remote audio application with Svelte and TypeScript
+A Remote audio application with Svelte and TypeScript
 
 ## Project Setup
 

@@ -6,12 +6,14 @@ export class AudioManager {
   }) {
     const { isExact = false, useDefault = false, selectedDeviceId } = options
     return await navigator.mediaDevices.getUserMedia({
-      audio: useDefault
+      audio: !useDefault
         ? {
-            deviceId: {
-              exact: isExact ? selectedDeviceId : undefined,
-              ideal: !isExact ? selectedDeviceId : undefined
-            },
+            deviceId: selectedDeviceId
+              ? {
+                  exact: isExact ? selectedDeviceId : undefined,
+                  ideal: !isExact ? selectedDeviceId : undefined
+                }
+              : undefined,
             echoCancellation: false,
             noiseSuppression: false,
             autoGainControl: false,

@@ -10,7 +10,7 @@
   <div class="min-h-screen min-w-screen bg-gray-50 flex items-center justify-center p-8">
     <div class="w-full max-w-2xl mx-auto">
       <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-3">Audio Project</h1>
+        <h1 class="text-3xl font-bold text-gray-900 mb-3">Remau</h1>
         <p class="text-gray-600">Choose a mode to continue</p>
       </div>
 
