@@ -2,8 +2,7 @@
   import type { MediaDevice } from '../../types/MediaDevice'
   import EmitterAudioReceiver from './components/Emitter/EmitterAudioReceiver.svelte'
   import EmitterDeviceSelector from './components/Emitter/EmitterDeviceSelector.svelte'
-  import EmitterLiveStreamingIndicator from './components/Emitter/EmitterLiveStreamingControls.svelte'
-  import EmitterVirtualMicrophone from './components/Emitter/EmitterVirtualMicrophone.svelte'
+  import EmitterStreamingControls from './components/Emitter/EmitterStreamingControls.svelte'
 
   let outputDevices = $state<MediaDevice[]>([])
   let selectedDeviceId = $state<string>('')
@@ -12,14 +11,6 @@
 
   // Estados de streaming en vivo
   let isStreaming = $state<boolean>(false)
-  let audioStream = $state<MediaStream | null>(null)
-
-  // Estados del micr?fono virtual (para emitir el audio capturado)
-  let virtualMicStream = $state<MediaStream | null>(null)
-
-  // Estados para WebRTC streaming
-  let isWebRTCStreaming = $state<boolean>(false)
-  let signalingURL = $state<string | null>(null)
 
   // Estados para recibir audio del receptor
   let receiverAudioStream = $state<MediaStream | null>(null)
@@ -63,28 +54,16 @@
           bind:selectedReceiverOutputDeviceId
         />
 
-        <EmitterLiveStreamingIndicator
+        <EmitterStreamingControls
           {selectedDeviceId}
-          {isStreaming}
+          bind:isStreaming
           bind:error
-          bind:audioStream
-          bind:virtualMicStream
+          bind:receiverAudioStream
+          bind:isPlayingReceiverAudio
+          bind:receiverAudioElement
+          bind:selectedReceiverOutputDeviceId
+          {changeReceiverOutputDevice}
         />
-
-        <!-- Virtual Microphone Section -->
-        {#if virtualMicStream}
-          <EmitterVirtualMicrophone
-            {virtualMicStream}
-            {isWebRTCStreaming}
-            {signalingURL}
-            bind:error
-            bind:receiverAudioStream
-            bind:isPlayingReceiverAudio
-            bind:receiverAudioElement
-            bind:selectedReceiverOutputDeviceId
-            {changeReceiverOutputDevice}
-          />
-        {/if}
 
         <!-- Receiver Audio Section -->
         {#if receiverAudioStream}
