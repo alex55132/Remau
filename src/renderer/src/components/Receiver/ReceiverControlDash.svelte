@@ -11,6 +11,9 @@
     error: string
     stopSendingAudio: () => void
     changeOutputDevice: () => Promise<void>
+    isConnecting?: boolean
+    onConnect?: (fn: () => Promise<void>) => void
+    onDisconnect?: (fn: () => void) => void
   }
 
   let {
@@ -21,20 +24,41 @@
     remoteStream = $bindable(),
     webrtcHelper = $bindable(),
     error = $bindable(),
-    changeOutputDevice
+    changeOutputDevice,
+    isConnecting = $bindable(),
+    onConnect,
+    onDisconnect
   }: Props = $props()
+
+  // Expose functions to parent via callbacks
+  $effect(() => {
+    if (onConnect) {
+      onConnect(handleConnect)
+    }
+    if (onDisconnect) {
+      onDisconnect(handleDisconnect)
+    }
+  })
 
   let audioContext = $state<AudioContext | null>(null)
   let signalingURL = $state<string>('http://localhost:8080')
-  let isConnecting = $state<boolean>(false)
   let audioElement = $state<HTMLAudioElement | null>(null)
   let selectedOutputDeviceId = $state<string>('default')
+  let internalIsConnecting = $state<boolean>(false)
 
-  async function connect(): Promise<void> {
-    if (isConnecting) return
+  // Use provided isConnecting or internal state
+  $effect(() => {
+    if (isConnecting !== undefined) {
+      internalIsConnecting = isConnecting
+    }
+  })
+
+  async function handleConnect(): Promise<void> {
+    if (internalIsConnecting) return
 
     try {
-      isConnecting = true
+      internalIsConnecting = true
+      if (isConnecting !== undefined) isConnecting = true
       error = null
       connectionStatus = 'Conectando...'
 
@@ -50,7 +74,8 @@
           console.log('🔊 Stream remoto recibido!')
           remoteStream = stream
           connectionStatus = 'Conectado - Reproduciendo'
-          isConnecting = false
+          internalIsConnecting = false
+          if (isConnecting !== undefined) isConnecting = false
 
           // Crear micrófono virtual automáticamente cuando se recibe el stream
           createVirtualMicrophone()
@@ -65,18 +90,21 @@
         onConnect: () => {
           console.log('🔊 Conexión establecida')
           connectionStatus = 'Conectado'
-          isConnecting = false
+          internalIsConnecting = false
+          if (isConnecting !== undefined) isConnecting = false
         },
         onDisconnect: () => {
           console.log('🔊 Desconectado')
           connectionStatus = 'Desconectado'
-          isConnecting = false
+          internalIsConnecting = false
+          if (isConnecting !== undefined) isConnecting = false
         },
         onError: (err) => {
           console.error('🔊 Error:', err)
           error = err.message
           connectionStatus = 'Error'
-          isConnecting = false
+          internalIsConnecting = false
+          if (isConnecting !== undefined) isConnecting = false
         }
       })
 
@@ -88,7 +116,8 @@
       console.error('Error al conectar:', err)
       error = err instanceof Error ? err.message : 'Error desconocido'
       connectionStatus = 'Error'
-      isConnecting = false
+      internalIsConnecting = false
+      if (isConnecting !== undefined) isConnecting = false
     }
   }
 
@@ -141,7 +170,7 @@
     isVirtualMicActive = false
   }
 
-  function disconnect(): void {
+  function handleDisconnect(): void {
     console.log('Desconectando...')
     stopSendingAudio()
     stopVirtualMicrophone()
@@ -151,7 +180,8 @@
     }
     remoteStream = null
     connectionStatus = 'Desconectado'
-    isConnecting = false
+    internalIsConnecting = false
+    if (isConnecting !== undefined) isConnecting = false
   }
 
   onMount(() => {
@@ -166,7 +196,7 @@
         ) {
           console.log('🔊 Servidor de señalización detectado, conectando...')
           clearInterval(checkInterval)
-          connect()
+          handleConnect()
         }
       } catch {
         // Servidor aún no iniciado
@@ -180,51 +210,8 @@
   })
 
   onDestroy(() => {
-    disconnect()
+    handleDisconnect()
   })
 </script>
 
-<div class="flex gap-3 justify-start flex-wrap">
-  {#if connectionStatus.includes('Conectado')}
-    <button
-      class="px-6 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-md font-medium transition-colors"
-      onclick={disconnect}
-    >
-      Disconnect
-    </button>
-  {:else if !isConnecting}
-    <button
-      class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
-      onclick={connect}
-    >
-      {connectionStatus === 'Error' || connectionStatus.includes('Error')
-        ? 'Retry Connection'
-        : 'Connect'}
-    </button>
-  {:else}
-    <button
-      class="px-6 py-2.5 bg-blue-400 text-white rounded-md font-medium cursor-not-allowed"
-      disabled
-    >
-      <span class="flex items-center gap-2">
-        <span
-          class="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"
-        ></span>
-        Connecting...
-      </span>
-    </button>
-  {/if}
-
-  <button
-    class="px-6 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-md font-medium transition-colors"
-    onclick={async () => {
-      try {
-        await window.api.window.openSettings()
-      } catch (err) {
-        console.error('Error abriendo configuración:', err)
-      }
-    }}
-  >
-    Settings
-  </button>
-</div>
+<!-- This component now only handles the connection logic, UI is in parent -->
