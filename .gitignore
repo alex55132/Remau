@@ -7,4 +7,4 @@ out
 .cursor
 .vscode
 build
-resources
+resources/drivers/*

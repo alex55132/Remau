@@ -90,59 +90,6 @@ function createMainWindow(): void {
 /**
  * @deprecated Only one window will be used
  */
-function createSenderWindow(): void {
-  // Ventana emisor
-  senderWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
-    show: false,
-    autoHideMenuBar: true,
-    title: 'Audio Emisor',
-    ...(process.platform === 'linux' ? { icon } : {}),
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-      nodeIntegration: false,
-      contextIsolation: true
-    }
-  })
-
-  setupPermissions(senderWindow)
-
-  senderWindow.on('ready-to-show', () => {
-    senderWindow?.show()
-  })
-
-  // Cerrar todas las ventanas cuando se cierre la principal (emisor)
-  senderWindow.on('closed', () => {
-    console.log('Ventana emisor cerrada, cerrando ventanas secundarias...')
-    if (receiverWindow && !receiverWindow.isDestroyed()) {
-      receiverWindow.close()
-    }
-    if (settingsWindow && !settingsWindow.isDestroyed()) {
-      settingsWindow.close()
-    }
-    senderWindow = null
-  })
-
-  senderWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
-
-  // HMR for renderer base on electron-vite cli.
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    senderWindow.loadURL(process.env['ELECTRON_RENDERER_URL'] + '?mode=sender')
-  } else {
-    senderWindow.loadFile(join(__dirname, '../renderer/index.html'), {
-      query: { mode: 'sender' }
-    })
-  }
-}
-
-/**
- * @deprecated Only one window will be used
- */
 function createReceiverWindow(): void {
   // Ventana receptor
   receiverWindow = new BrowserWindow({
@@ -238,7 +185,7 @@ function createSettingsWindow(): void {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('com.alexthecaster.remau')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -311,57 +258,7 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('driver:install', async () => {
-    try {
-      const result = await virtualDriver!.installDriver()
-      return result
-    } catch (error) {
-      console.error('Error installing driver:', error)
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Unknown error'
-      }
-    }
-  })
-
-  ipcMain.handle('driver:open-download', () => {
-    try {
-      const url = virtualDriver!.getInstallerDownloadUrl()
-      shell.openExternal(url)
-      return { success: true }
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
-    }
-  })
-
-  // Handler para abrir ventana de configuración
-  ipcMain.handle('window:open-settings', () => {
-    try {
-      createSettingsWindow()
-      return { success: true }
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
-    }
-  })
-
-  // Handler para reabrir ventana del receptor
-  ipcMain.handle('window:open-receiver', () => {
-    try {
-      if (receiverWindow && !receiverWindow.isDestroyed()) {
-        receiverWindow.focus()
-        return { success: true, message: 'Ventana del receptor enfocada' }
-      } else {
-        createReceiverWindow()
-        return { success: true, message: 'Ventana del receptor abierta' }
-      }
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
-    }
-  })
-
   // Crear ambas ventanas
-  //createSenderWindow()
-  //createReceiverWindow()
   createMainWindow()
 
   app.on('activate', function () {
@@ -387,6 +284,3 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.

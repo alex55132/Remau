@@ -1,13 +1,46 @@
 <script lang="ts">
   import Emitter from './Emitter.svelte'
   import Receiver from './Receiver.svelte'
+  import AcknowledgmentsPopup from './components/AcknowledgmentsPopup.svelte'
 
   type Mode = 'receiver' | 'emitter'
   let selectedMode = $state<Mode | null>(null)
+  let showAcknowledgment = $state(false)
+
+  type DriverCheckResult =
+    | {
+        success: true
+        driver: { name: string; installed: boolean; platform: string }
+        downloadUrl: string
+        instructions: string[]
+      }
+    | { success: false; error: string }
+
+  let driverData = $state<DriverCheckResult | null>(null)
+
+  $effect(() => {
+    window.api.driver.check().then((result: DriverCheckResult) => {
+      driverData = result
+    })
+  })
 </script>
 
 {#if selectedMode === null}
-  <div class="min-h-screen min-w-screen bg-gray-50 flex items-center justify-center p-8">
+  <div class="min-h-screen min-w-screen bg-gray-50 flex items-center justify-center p-8 relative">
+    <button
+      class="absolute top-4 right-4 p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+      onclick={() => (showAcknowledgment = true)}
+      title="Acknowledgments"
+    >
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+    </button>
     <div class="w-full max-w-2xl mx-auto">
       <div class="text-center mb-8">
         <h1 class="text-3xl font-bold text-gray-900 mb-3">Remau</h1>
@@ -82,12 +115,28 @@
         <div>
           <h2 class="text-lg sm:text-xl font-semibold text-gray-900 capitalize">{selectedMode}</h2>
         </div>
-        <button
-          class="w-full sm:w-auto px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-          onclick={() => (selectedMode = null)}
-        >
-          Change Mode
-        </button>
+        <div class="flex items-center gap-3 w-full sm:w-auto">
+          <button
+            class="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+            onclick={() => (showAcknowledgment = true)}
+            title="Acknowledgments"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </button>
+          <button
+            class="w-full sm:w-auto px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            onclick={() => (selectedMode = null)}
+          >
+            Change Mode
+          </button>
+        </div>
       </div>
     </div>
 
@@ -100,3 +149,5 @@
     </div>
   </div>
 {/if}
+
+<AcknowledgmentsPopup bind:show={showAcknowledgment} {driverData} />

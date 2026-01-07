@@ -1,27 +1,16 @@
-import { execFile } from 'child_process'
-import { app } from 'electron'
-import { existsSync } from 'fs'
 import { platform } from 'os'
-import { join } from 'path'
-import { promisify } from 'util'
-
-const execFileAsync = promisify(execFile)
 
 export interface VirtualDriverInfo {
   name: string
   installed: boolean
   platform: string
-  installer?: string
 }
 
 export class VirtualAudioDriver {
-  private readonly driversPath: string
-
   constructor() {
     // Ruta donde estarán los instaladores de drivers
     // En producción: resources/drivers
     // En desarrollo: resources/drivers
-    this.driversPath = join(app.getAppPath(), 'resources', 'drivers')
   }
 
   /**
@@ -35,16 +24,14 @@ export class VirtualAudioDriver {
         return {
           name: 'VB-Audio Virtual Cable',
           installed: this.isVBCableInstalled(),
-          platform: 'Windows',
-          installer: 'VBCABLE_Setup_x64.exe'
+          platform: 'Windows'
         }
 
       case 'darwin':
         return {
           name: 'BlackHole',
           installed: this.isBlackHoleInstalled(),
-          platform: 'macOS',
-          installer: 'BlackHole2ch.pkg'
+          platform: 'macOS'
         }
 
       case 'linux':
@@ -170,120 +157,6 @@ export class VirtualAudioDriver {
       return true
     } catch {
       return false
-    }
-  }
-
-  /**
-   * Instala el driver virtual según la plataforma
-   */
-  async installDriver(): Promise<{ success: boolean; message: string }> {
-    const os = platform()
-
-    try {
-      switch (os) {
-        case 'win32':
-          return await this.installVBCable()
-
-        case 'darwin':
-          return await this.installBlackHole()
-
-        case 'linux':
-          return await this.setupPulseAudioLoopback()
-
-        default:
-          return {
-            success: false,
-            message: `Sistema operativo no soportado: ${os}`
-          }
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Error desconocido'
-      }
-    }
-  }
-
-  /**
-   * Instala VB-Cable en Windows
-   */
-  private async installVBCable(): Promise<{ success: boolean; message: string }> {
-    const installerPath = join(this.driversPath, 'windows', 'VBCABLE_Setup_x64.exe')
-
-    if (!existsSync(installerPath)) {
-      return {
-        success: false,
-        message:
-          'Instalador no encontrado. Por favor descarga VB-Cable de https://vb-audio.com/Cable/'
-      }
-    }
-
-    try {
-      // Ejecutar el instalador con permisos de administrador
-      await execFileAsync(installerPath, ['/VERYSILENT', '/NORESTART'])
-
-      return {
-        success: true,
-        message:
-          'VB-Audio Virtual Cable instalado correctamente. Es posible que necesites reiniciar el PC.'
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message:
-          'El instalador requiere permisos de administrador. Por favor ejecuta como administrador.'
-      }
-    }
-  }
-
-  /**
-   * Instala BlackHole en macOS
-   */
-  private async installBlackHole(): Promise<{ success: boolean; message: string }> {
-    const installerPath = join(this.driversPath, 'macos', 'BlackHole2ch.pkg')
-
-    if (!existsSync(installerPath)) {
-      return {
-        success: false,
-        message:
-          'Instalador no encontrado. Por favor descarga BlackHole de https://existential.audio/blackhole/'
-      }
-    }
-
-    try {
-      // Ejecutar el instalador de macOS
-      await execFileAsync('open', [installerPath])
-
-      return {
-        success: true,
-        message: 'Instalador de BlackHole abierto. Por favor sigue las instrucciones en pantalla.'
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: 'Error al abrir el instalador de BlackHole'
-      }
-    }
-  }
-
-  /**
-   * Configura PulseAudio loopback en Linux
-   */
-  private async setupPulseAudioLoopback(): Promise<{ success: boolean; message: string }> {
-    try {
-      // Cargar el módulo loopback de PulseAudio
-      await execFileAsync('pactl', ['load-module', 'module-loopback', 'latency_msec=1'])
-
-      return {
-        success: true,
-        message: 'Loopback de audio configurado correctamente en PulseAudio'
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message:
-          'Error al configurar PulseAudio. Asegúrate de tener PulseAudio instalado: sudo apt install pulseaudio'
-      }
     }
   }
 

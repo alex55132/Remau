@@ -12,13 +12,20 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
+extraResources:
+  - from: resources/drivers
+    to: drivers
 win:
   executableName: Remau
+  sign: false
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+  allowToChangeInstallationDirectory: true
+  oneClick: false
+  include: scripts/win-installer.nsh
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
