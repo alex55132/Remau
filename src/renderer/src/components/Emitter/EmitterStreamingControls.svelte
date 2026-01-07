@@ -11,6 +11,7 @@
     isPlayingReceiverAudio: boolean
     receiverAudioElement: HTMLAudioElement | null
     selectedReceiverOutputDeviceId: string
+    signalingURL: string
     changeReceiverOutputDevice: () => Promise<void>
   }
 
@@ -22,6 +23,7 @@
     isPlayingReceiverAudio = $bindable(),
     receiverAudioElement = $bindable(),
     selectedReceiverOutputDeviceId = $bindable(),
+    signalingURL,
     changeReceiverOutputDevice
   }: Props = $props()
 
@@ -29,7 +31,6 @@
   let audioStream = $state<MediaStream | null>(null)
   let virtualMicStream = $state<MediaStream | null>(null)
   let isWebRTCStreaming = $state<boolean>(false)
-  let signalingURL = $state<string | null>(null)
   let webrtcHelper = $state<WebRTCHelper | null>(null)
 
   async function startStreaming(): Promise<void> {
@@ -107,9 +108,17 @@
     }
 
     try {
+      // Convert WebSocket URL to HTTP if needed
+      let urlToUse = signalingURL
+      if (urlToUse.startsWith('ws://')) {
+        urlToUse = urlToUse.replace('ws://', 'http://')
+      } else if (urlToUse.startsWith('wss://')) {
+        urlToUse = urlToUse.replace('wss://', 'https://')
+      }
+
       // Crear helper WebRTC (emisor, iniciador)
       // El helper manejará automáticamente el inicio del servidor
-      webrtcHelper = new WebRTCHelper('http://localhost:8080', true, {
+      webrtcHelper = new WebRTCHelper(urlToUse, true, {
         onStream: (stream) => {
           console.log('🎙️ Emisor: Stream recibido del receptor!')
           receiverAudioStream = stream
@@ -160,7 +169,6 @@
 
       // Conectar con el stream virtual
       await webrtcHelper.connect(virtualMicStream)
-      signalingURL = 'http://localhost:8080'
       isWebRTCStreaming = true
       console.log('🎙️ Emisor: WebRTC streaming iniciado')
     } catch (err) {
@@ -188,7 +196,6 @@
       if (isWebRTCStreaming) {
         await window.api.webrtc.stop()
         isWebRTCStreaming = false
-        signalingURL = null
       }
     } catch (err) {
       console.error('Error al detener streaming WebRTC:', err)
@@ -226,7 +233,7 @@
           <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
           <span class="text-sm font-medium text-gray-700">Live Streaming</span>
         </div>
-        {#if isWebRTCStreaming && signalingURL}
+        {#if isWebRTCStreaming}
           <div class="flex items-center gap-3 ml-5">
             <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
             <span class="text-sm font-medium text-gray-700">WebRTC Connected</span>

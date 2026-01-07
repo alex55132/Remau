@@ -12,6 +12,7 @@
     stopSendingAudio: () => void
     changeOutputDevice: () => Promise<void>
     isConnecting?: boolean
+    signalingURL: string
     onConnect?: (fn: () => Promise<void>) => void
     onDisconnect?: (fn: () => void) => void
   }
@@ -26,6 +27,7 @@
     error = $bindable(),
     changeOutputDevice,
     isConnecting = $bindable(),
+    signalingURL,
     onConnect,
     onDisconnect
   }: Props = $props()
@@ -41,7 +43,6 @@
   })
 
   let audioContext = $state<AudioContext | null>(null)
-  let signalingURL = $state<string>('http://localhost:8080')
   let audioElement = $state<HTMLAudioElement | null>(null)
   let selectedOutputDeviceId = $state<string>('default')
   let internalIsConnecting = $state<boolean>(false)
@@ -62,14 +63,16 @@
       error = null
       connectionStatus = 'Conectando...'
 
-      // Obtener URL del servidor de señalización
-      const result = await window.api.webrtc.getUrl()
-      if (result.success && result.url) {
-        signalingURL = result.url.replace('ws://', 'http://').replace('wss://', 'https://')
+      // Convert WebSocket URL to HTTP if needed
+      let urlToUse = signalingURL
+      if (urlToUse.startsWith('ws://')) {
+        urlToUse = urlToUse.replace('ws://', 'http://')
+      } else if (urlToUse.startsWith('wss://')) {
+        urlToUse = urlToUse.replace('wss://', 'https://')
       }
 
       // Crear helper WebRTC (receptor, no iniciador)
-      const helper = new WebRTCHelper(signalingURL, false, {
+      const helper = new WebRTCHelper(urlToUse, false, {
         onStream: (stream) => {
           console.log('🔊 Stream remoto recibido!')
           remoteStream = stream

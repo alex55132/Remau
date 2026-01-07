@@ -29,6 +29,11 @@
   let localAudioStream = $state<MediaStream | null>(null)
   let isSendingAudio = $state<boolean>(false)
 
+  // Signaling URL configuration
+  const STORAGE_KEY = 'signaling_url'
+  let signalingURL = $state<string>('http://localhost:8080')
+  let showSignalingURLInput = $state<boolean>(false)
+
   async function startSendingAudio(): Promise<void> {
     if (!selectedLoopbackDeviceId) {
       error = 'Please select a loopback/output device'
@@ -154,9 +159,19 @@
   }
 
   onMount(async () => {
+    // Load signaling URL from localStorage
+    const savedURL = localStorage.getItem(STORAGE_KEY)
+    if (savedURL) {
+      signalingURL = savedURL
+    }
+
     // Cargar dispositivos de salida
     loadOutputDevices()
   })
+
+  function handleSignalingURLChange(): void {
+    localStorage.setItem(STORAGE_KEY, signalingURL)
+  }
 
   onDestroy(() => {
     stopSendingAudio()
@@ -338,6 +353,51 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <!-- Left Column: Main Controls -->
           <div class="lg:col-span-2 space-y-6">
+            <!-- Signaling URL Configuration -->
+            <div
+              class="bg-gradient-to-br from-white to-slate-50 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300"
+            >
+              <div class="p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="block text-sm font-medium text-gray-700">
+                    Signaling Server URL
+                  </span>
+                  <button
+                    onclick={() => (showSignalingURLInput = !showSignalingURLInput)}
+                    class="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    {showSignalingURLInput ? 'Hide' : 'Configure'}
+                  </button>
+                </div>
+                {#if showSignalingURLInput}
+                  <div class="space-y-2">
+                    <label
+                      for="receiver-signaling-url"
+                      class="block text-sm font-medium text-gray-700 sr-only"
+                    >
+                      Signaling Server URL
+                    </label>
+                    <input
+                      id="receiver-signaling-url"
+                      type="text"
+                      bind:value={signalingURL}
+                      oninput={handleSignalingURLChange}
+                      placeholder="http://localhost:8080"
+                      class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <p class="text-xs text-gray-500">
+                      WebSocket signaling server URL (e.g., http://localhost:8080 or
+                      ws://example.com:8080)
+                    </p>
+                  </div>
+                {:else}
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm text-gray-600 font-mono">{signalingURL}</span>
+                  </div>
+                {/if}
+              </div>
+            </div>
+
             <!-- ReceiverControlDash handles connection logic (no UI) -->
             <ReceiverControlDash
               bind:virtualMicStream
@@ -349,6 +409,7 @@
               {changeOutputDevice}
               bind:connectionStatus
               bind:isConnecting
+              {signalingURL}
               onConnect={(fn) => (connectFn = fn)}
               onDisconnect={(fn) => (disconnectFn = fn)}
             />
