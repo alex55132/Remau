@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte'
+  import { loadIceServers } from '../../lib/IceServersService'
   import { WebRTCHelper } from '../../lib/WebrtcHelper'
 
   type Props = {
@@ -39,30 +40,36 @@
 
       // Crear helper WebRTC (emisor, iniciador)
       // El helper manejará automáticamente el inicio del servidor
-      webrtcHelper = new WebRTCHelper('http://localhost:8080', true, {
-        onStream: (stream) => {
-          console.log('🎙️ Emisor: Stream recibido del receptor!')
-          receiverAudioStream = stream
-          isPlayingReceiverAudio = false
+      const iceServers = loadIceServers()
+      webrtcHelper = new WebRTCHelper(
+        'http://localhost:8080',
+        true,
+        {
+          onStream: (stream) => {
+            console.log('🎙️ Emisor: Stream recibido del receptor!')
+            receiverAudioStream = stream
+            isPlayingReceiverAudio = false
 
-          // Apply the selected output device after a short delay
-          setTimeout(() => {
-            if (receiverAudioElement && selectedReceiverOutputDeviceId !== 'default') {
-              changeReceiverOutputDevice()
-            }
-          }, 500)
+            // Apply the selected output device after a short delay
+            setTimeout(() => {
+              if (receiverAudioElement && selectedReceiverOutputDeviceId !== 'default') {
+                changeReceiverOutputDevice()
+              }
+            }, 500)
+          },
+          onConnect: () => {
+            console.log('🎙️ Emisor: Conexión establecida')
+          },
+          onDisconnect: () => {
+            console.log('🎙️ Emisor: Desconectado')
+          },
+          onError: (err) => {
+            console.error('🎙️ Emisor - Error:', err)
+            error = err.message
+          }
         },
-        onConnect: () => {
-          console.log('🎙️ Emisor: Conexión establecida')
-        },
-        onDisconnect: () => {
-          console.log('🎙️ Emisor: Desconectado')
-        },
-        onError: (err) => {
-          console.error('🎙️ Emisor - Error:', err)
-          error = err.message
-        }
-      })
+        iceServers
+      )
 
       // Validar que el stream tenga tracks activos antes de conectar
       const tracks = virtualMicStream.getAudioTracks()

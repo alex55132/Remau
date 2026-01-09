@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
+  import { loadIceServers } from '../../lib/IceServersService'
   import { WebRTCHelper } from '../../lib/WebrtcHelper'
 
   type Props = {
@@ -72,44 +73,50 @@
       }
 
       // Crear helper WebRTC (receptor, no iniciador)
-      const helper = new WebRTCHelper(urlToUse, false, {
-        onStream: (stream) => {
-          console.log('🔊 Stream remoto recibido!')
-          remoteStream = stream
-          connectionStatus = 'Conectado - Reproduciendo'
-          internalIsConnecting = false
-          if (isConnecting !== undefined) isConnecting = false
+      const iceServers = loadIceServers()
+      const helper = new WebRTCHelper(
+        urlToUse,
+        false,
+        {
+          onStream: (stream) => {
+            console.log('🔊 Stream remoto recibido!')
+            remoteStream = stream
+            connectionStatus = 'Conectado - Reproduciendo'
+            internalIsConnecting = false
+            if (isConnecting !== undefined) isConnecting = false
 
-          // Crear micrófono virtual automáticamente cuando se recibe el stream
-          createVirtualMicrophone()
+            // Crear micrófono virtual automáticamente cuando se recibe el stream
+            createVirtualMicrophone()
 
-          // Aplicar el dispositivo de salida seleccionado
-          setTimeout(() => {
-            if (audioElement && selectedOutputDeviceId !== 'default') {
-              changeOutputDevice()
-            }
-          }, 500)
+            // Aplicar el dispositivo de salida seleccionado
+            setTimeout(() => {
+              if (audioElement && selectedOutputDeviceId !== 'default') {
+                changeOutputDevice()
+              }
+            }, 500)
+          },
+          onConnect: () => {
+            console.log('🔊 Conexión establecida')
+            connectionStatus = 'Conectado'
+            internalIsConnecting = false
+            if (isConnecting !== undefined) isConnecting = false
+          },
+          onDisconnect: () => {
+            console.log('🔊 Desconectado')
+            connectionStatus = 'Desconectado'
+            internalIsConnecting = false
+            if (isConnecting !== undefined) isConnecting = false
+          },
+          onError: (err) => {
+            console.error('🔊 Error:', err)
+            error = err.message
+            connectionStatus = 'Error'
+            internalIsConnecting = false
+            if (isConnecting !== undefined) isConnecting = false
+          }
         },
-        onConnect: () => {
-          console.log('🔊 Conexión establecida')
-          connectionStatus = 'Conectado'
-          internalIsConnecting = false
-          if (isConnecting !== undefined) isConnecting = false
-        },
-        onDisconnect: () => {
-          console.log('🔊 Desconectado')
-          connectionStatus = 'Desconectado'
-          internalIsConnecting = false
-          if (isConnecting !== undefined) isConnecting = false
-        },
-        onError: (err) => {
-          console.error('🔊 Error:', err)
-          error = err.message
-          connectionStatus = 'Error'
-          internalIsConnecting = false
-          if (isConnecting !== undefined) isConnecting = false
-        }
-      })
+        iceServers
+      )
 
       // Conectar
       await helper.connect()

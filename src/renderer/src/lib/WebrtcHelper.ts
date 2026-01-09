@@ -22,10 +22,18 @@ export class WebRTCHelper {
   private isInitiator: boolean
   private stream: MediaStream | null = null
 
-  constructor(signalingURL: string, isInitiator: boolean, callbacks: WebRTCHelperCallbacks = {}) {
+  private iceServers: RTCIceServer[] = []
+
+  constructor(
+    signalingURL: string,
+    isInitiator: boolean,
+    callbacks: WebRTCHelperCallbacks = {},
+    iceServers: RTCIceServer[] = []
+  ) {
     this.signalingURL = signalingURL
     this.isInitiator = isInitiator
     this.callbacks = callbacks
+    this.iceServers = iceServers
   }
 
   async connect(stream?: MediaStream): Promise<void> {
@@ -194,7 +202,7 @@ export class WebRTCHelper {
         trickle: false,
         stream: this.stream || undefined,
         config: {
-          iceServers: []
+          iceServers: this.iceServers
         }
       }) as SimplePeer.Instance
 

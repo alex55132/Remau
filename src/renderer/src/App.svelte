@@ -1,11 +1,11 @@
 <script lang="ts">
   import Emitter from './Emitter.svelte'
   import Receiver from './Receiver.svelte'
-  import AcknowledgmentsPopup from './components/AcknowledgmentsPopup.svelte'
+  import SettingsPopup from './components/SettingsPopup.svelte'
 
   type Mode = 'receiver' | 'emitter'
   let selectedMode = $state<Mode | null>(null)
-  let showAcknowledgment = $state(false)
+  let showSettingsPopup = $state(false)
 
   type DriverCheckResult =
     | {
@@ -29,8 +29,8 @@
   <div class="min-h-screen min-w-screen bg-gray-50 flex items-center justify-center p-8 relative">
     <button
       class="absolute top-4 right-4 p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
-      onclick={() => (showAcknowledgment = true)}
-      title="Acknowledgments"
+      onclick={() => (showSettingsPopup = true)}
+      title="Settings"
     >
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -118,8 +118,8 @@
         <div class="flex items-center gap-3 w-full sm:w-auto">
           <button
             class="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
-            onclick={() => (showAcknowledgment = true)}
-            title="Acknowledgments"
+            onclick={() => (showSettingsPopup = true)}
+            title="Settings"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -150,4 +150,4 @@
   </div>
 {/if}
 
-<AcknowledgmentsPopup bind:show={showAcknowledgment} {driverData} />
+<SettingsPopup bind:show={showSettingsPopup} {driverData} />
