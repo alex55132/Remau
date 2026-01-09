@@ -6,5 +6,4 @@ out
 *.log*
 .cursor
 .vscode
-build
 resources/drivers/*

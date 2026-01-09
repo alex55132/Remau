@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # PKG Postinstall Script
 # This script executes the BlackHole installation script after the app is installed
@@ -95,4 +95,3 @@ main() {
 
 # Run main function
 main "$@"
-
