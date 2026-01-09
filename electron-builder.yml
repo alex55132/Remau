@@ -15,8 +15,6 @@ asarUnpack:
 extraResources:
   - from: resources/drivers
     to: drivers
-  - from: build/scripts/mac-install-blackhole.sh
-    to: scripts/mac-install-blackhole.sh
 win:
   executableName: Remau
   sign: false
@@ -38,7 +36,7 @@ mac:
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
 pkg:
-  scripts: build/scripts/pkg-scripts
+  scripts: scripts/pkg-scripts
   artifactName: ${name}-${version}.${ext}
 linux:
   target:
