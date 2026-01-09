@@ -2,16 +2,18 @@
 
 # PKG Postinstall Script
 # This script executes the BlackHole installation script from the Scripts directory
+# Note: Running in sandbox, so we can only use system logger, not file writes
 
-# Redirect all output to a log file
-LOG_FILE="/tmp/remau-postinstall.log"
-exec > "$LOG_FILE" 2>&1
+# Log to system log only (sandbox-compatible)
+log_message() {
+    logger -t "remau-postinstall" "$1" 2>/dev/null || echo "$1" >&2
+}
 
-echo "=== Remau Postinstall Started at $(date) ==="
+log_message "=== Remau Postinstall Started at $(date) ==="
 
 # Get the directory where this script is located (Scripts directory in the PKG)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-echo "Script directory: $SCRIPT_DIR"
+log_message "Script directory: $SCRIPT_DIR"
 
 # Get the logged-in user (not root)
 get_logged_in_user() {
@@ -28,10 +30,10 @@ get_logged_in_user() {
 }
 
 USER=$(get_logged_in_user)
-echo "Detected user: $USER"
+log_message "Detected user: $USER"
 
 if [ -z "$USER" ] || [ "$USER" = "root" ]; then
-    echo "Warning: Could not determine logged-in user. Skipping BlackHole installation."
+    log_message "Warning: Could not determine logged-in user. Skipping BlackHole installation."
     exit 0  # Don't fail the installation
 fi
 
@@ -39,22 +41,21 @@ fi
 BLACKHOLE_SCRIPT="$SCRIPT_DIR/mac-install-blackhole.sh"
 
 if [ -f "$BLACKHOLE_SCRIPT" ]; then
-    echo "Found BlackHole installation script at: $BLACKHOLE_SCRIPT"
+    log_message "Found BlackHole installation script at: $BLACKHOLE_SCRIPT"
     chmod +x "$BLACKHOLE_SCRIPT"
-    echo "Running BlackHole installation script as user: $USER"
+    log_message "Running BlackHole installation script as user: $USER"
     
     # Execute the script as the logged-in user
     if su - "$USER" -c "bash \"$BLACKHOLE_SCRIPT\"" 2>&1; then
-        echo "BlackHole installation completed successfully"
+        log_message "BlackHole installation completed successfully"
     else
         EXIT_CODE=$?
-        echo "Warning: BlackHole installation script exited with code $EXIT_CODE, but continuing installation."
+        log_message "Warning: BlackHole installation script exited with code $EXIT_CODE, but continuing installation."
     fi
 else
-    echo "Warning: BlackHole installation script not found at $BLACKHOLE_SCRIPT"
+    log_message "Warning: BlackHole installation script not found at $BLACKHOLE_SCRIPT"
 fi
 
-echo "=== Remau Postinstall Completed at $(date) ==="
-echo "Log saved to: $LOG_FILE"
+log_message "=== Remau Postinstall Completed at $(date) ==="
 
 exit 0
