@@ -1,0 +1,98 @@
+#!/bin/bash
+
+# PKG Postinstall Script
+# This script executes the BlackHole installation script after the app is installed
+# Runs as root, but executes the script as the logged-in user
+
+# Get the logged-in user (not root)
+get_logged_in_user() {
+    # Try multiple methods to get the logged-in user
+    local user=$(who | grep "console" | awk '{print $1}' | head -n 1)
+    if [ -z "$user" ]; then
+        user=$(stat -f '%Su' /dev/console 2>/dev/null || echo "")
+    fi
+    if [ -z "$user" ] || [ "$user" = "root" ]; then
+        # Fallback: get the first non-root user with a home directory
+        user=$(dscl . -list /Users | grep -v "^_" | grep -v "^root" | head -n 1)
+    fi
+    echo "$user"
+}
+
+# Find the installed app
+find_installed_app() {
+    local app_paths=(
+        "/Applications/Remau.app"
+    )
+    
+    # Check common installation locations
+    local bundle_id="com.alexthecaster.remau"
+    
+    # Try to find by bundle ID using mdfind (Spotlight)
+    if command -v mdfind &> /dev/null; then
+        local found_app=$(mdfind "kMDItemCFBundleIdentifier == '$bundle_id'" 2>/dev/null | head -n 1)
+        if [ -n "$found_app" ] && [ -d "$found_app" ]; then
+            app_paths+=("$found_app")
+        fi
+    fi
+    
+    # Also check for any app matching the bundle ID in Applications
+    if [ -f "/Applications/Remau.app/Contents/Info.plist" ]; then
+        local app_name=$(defaults read "/Applications/Remau.app/Contents/Info.plist" CFBundleName 2>/dev/null || echo "Remau")
+        if [ -n "$app_name" ] && [ "$app_name" != "Remau" ]; then
+            app_paths+=("/Applications/${app_name}.app")
+        fi
+    fi
+    
+    # Try each path
+    for path in "${app_paths[@]}"; do
+        if [ -d "$path" ] && [ -f "$path/Contents/Info.plist" ]; then
+            echo "$path"
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
+# Main execution
+main() {
+    local user=$(get_logged_in_user)
+    
+    if [ -z "$user" ] || [ "$user" = "root" ]; then
+        echo "Warning: Could not determine logged-in user. Skipping BlackHole installation." >&2
+        exit 0  # Don't fail the installation
+    fi
+    
+    local app_path=$(find_installed_app)
+    
+    if [ -z "$app_path" ]; then
+        echo "Warning: Could not find installed app. Skipping BlackHole installation." >&2
+        exit 0  # Don't fail the installation
+    fi
+    
+    local script_path="$app_path/Contents/Resources/scripts/mac-install-blackhole.sh"
+    
+    if [ ! -f "$script_path" ]; then
+        echo "Warning: BlackHole installation script not found at $script_path" >&2
+        exit 0  # Don't fail the installation
+    fi
+    
+    # Make script executable
+    chmod +x "$script_path"
+    
+    # Execute the script as the logged-in user
+    # Use su to switch to the user and run the script
+    # Note: su - uses a login shell, which ensures proper environment setup
+    if su - "$user" -c "bash \"$script_path\"" 2>&1; then
+        :
+    else
+        local exit_code=$?
+        echo "Warning: BlackHole installation script exited with code $exit_code, but continuing installation." >&2
+        # Don't fail the PKG installation if script fails - it's optional
+        exit 0
+    fi
+}
+
+# Run main function
+main "$@"
+

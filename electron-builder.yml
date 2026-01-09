@@ -29,6 +29,7 @@ nsis:
   oneClick: false
   include: scripts/win-installer.nsh
 mac:
+  target: pkg
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.
@@ -36,7 +37,8 @@ mac:
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
-dmg:
+pkg:
+  scripts: scripts/pkg-scripts
   artifactName: ${name}-${version}.${ext}
 linux:
   target:
