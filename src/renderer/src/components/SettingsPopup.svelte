@@ -155,6 +155,18 @@
               <li class="bg-blue-50 border-l-4 border-blue-500 pl-3 py-2 rounded-r-md -ml-2">
                 <strong class="text-blue-700">BlackHole</strong>
                 <span class="text-blue-600"> - A virtual audio driver for macOS</span>
+                {#if driverData && driverData.success && driverData.driver.platform === 'macOS'}
+                  <div class="ml-2 text-sm text-gray-600 mt-1">
+                    <span class="font-semibold">Status:</span>
+                    {#if driverData.driver.installed}
+                      <span class="text-green-600">Installed</span>
+                    {:else}
+                      <span class="text-red-600"
+                        >Not installed (Use brew install --cask blackhole-2ch)</span
+                      >
+                    {/if}
+                  </div>
+                {/if}
               </li>
               <li class="bg-blue-50 border-l-4 border-blue-500 pl-3 py-2 rounded-r-md -ml-2">
                 <span class="text-blue-700"

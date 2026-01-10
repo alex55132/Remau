@@ -36,7 +36,6 @@ mac:
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
 pkg:
-  scripts: scripts/pkg-scripts
   artifactName: ${name}-${version}.${ext}
 linux:
   target:
